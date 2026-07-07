@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        --bg: #0f1720;
+        --panel: #16212c;
+        --accent: #009991;
+        --accent-hover: #00b3a9;
+        --text: #e6edf3;
+        --muted: #8b98a5;
+        --border: #233140;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 280px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .wrap { padding: 14px; }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--muted);
+        box-shadow: 0 0 0 0 rgba(0,153,145,0.6);
+      }
+      .dot.live {
+        background: var(--accent);
+        animation: pulse 1.6s infinite;
+      }
+      @keyframes pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(0,153,145,0.55); }
+        70%  { box-shadow: 0 0 0 6px rgba(0,153,145,0); }
+        100% { box-shadow: 0 0 0 0 rgba(0,153,145,0); }
+      }
+      button.play {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .15s ease;
+      }
+      button.play:hover { background: var(--accent-hover); }
+      button.play:disabled { opacity: .5; cursor: default; }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+      }
+      label { font-size: 12px; color: var(--muted); }
+      select {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .volume {
+        margin-top: 14px;
+      }
+      .volume .row { margin-top: 6px; }
+      input[type="range"] {
+        width: 100%;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
+      .status {
+        margin-top: 10px;
+        font-size: 11px;
+        color: var(--muted);
+        min-height: 14px;
+        text-align: center;
+      }
+      .status.error { color: #ff6b6b; }
+      .bmc {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: center;
+      }
+      .bmc a {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        text-decoration: none;
+        color: #fff;
+        background: #ffdd00;
+        color: #000;
+        font-weight: 700;
+        font-size: 12px;
+        padding: 8px 14px;
+        border-radius: 8px;
+        transition: filter .15s ease;
+      }
+      .bmc a:hover { filter: brightness(1.05); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1><span id="dot" class="dot"></span> Code Radio</h1>
+      <button id="play" class="play">Play</button>
+      <div class="row">
+        <label for="bitrate">Bitrate</label>
+        <select id="bitrate">
+          <option value="high">128 kbps</option>
+          <option value="low">64 kbps</option>
+        </select>
+      </div>
+      <div class="volume">
+        <div class="row">
+          <label for="volume">Volume</label>
+          <span id="volLabel" style="font-size:12px;color:var(--muted)">80%</span>
+        </div>
+        <input id="volume" type="range" min="0" max="1" step="0.01" value="0.8" />
+      </div>
+      <div id="status" class="status"></div>
+      <div class="bmc">
+        <a id="bmc" href="https://www.buymeacoffee.com/lungo" target="_blank" rel="noopener">
+          ☕ Buy me a coffee
+        </a>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>
