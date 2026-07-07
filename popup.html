@@ -112,6 +112,18 @@
         transition: filter .15s ease;
       }
       .bmc a:hover { filter: brightness(1.05); }
+      .courtesy {
+        margin-top: 8px;
+        font-size: 10px;
+        color: var(--muted);
+        text-align: center;
+      }
+      .courtesy a {
+        color: var(--muted);
+        text-decoration: none;
+        border-bottom: 1px dotted var(--border);
+      }
+      .courtesy a:hover { color: var(--text); }
     </style>
   </head>
   <body>
@@ -137,6 +149,9 @@
         <a id="bmc" href="https://www.buymeacoffee.com/lungo" target="_blank" rel="noopener">
           ☕ Buy me a coffee
         </a>
+      </div>
+      <div class="courtesy">
+        Stream courtesy of <a id="fcc" href="https://coderadio.freecodecamp.org" target="_blank" rel="noopener">freeCodeCamp Code Radio</a>
       </div>
     </div>
     <script src="popup.js"></script>

@@ -7,6 +7,7 @@ A Manifest V3 browser extension that plays [freeCodeCamp's Code Radio](https://c
 - **Bitrate selector**: 128 kbps or 64 kbps streams
 - **Volume control**
 - **Background play**: uses an MV3 offscreen document so audio keeps playing after the popup closes
+- **Courtesy link**: stream attributed to [freeCodeCamp Code Radio](https://coderadio.freecodecamp.org)
 - **Buy Me a Coffee** link (handle: [lungo](https://www.buymeacoffee.com/lungo))
 
 ## Load it in Chrome / Edge
