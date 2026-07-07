@@ -1,7 +1,16 @@
-// Background service worker for Code Radio Player.
-// Owns playback state and an offscreen document that holds the <audio> element,
-// enabling continuous background playback across popup open/close.
+// Background for Code Radio Player.
+// Owns playback state. On Chrome it drives an offscreen document that holds the
+// <audio> element (service workers can't host media). On Firefox, MV3 background
+// scripts run in a page context with DOM access, so we host the <audio> element
+// directly here instead of using the offscreen API (which Firefox lacks).
+// The same file is loaded by both browsers; the OFFSCREEN_SUPPORTED flag routes
+// audio commands to the correct backend.
 
+const OFFSCREEN_SUPPORTED = !!(
+  typeof chrome !== "undefined" &&
+  chrome.offscreen &&
+  typeof chrome.offscreen.createDocument === "function"
+);
 const OFFSCREEN_URL = "offscreen.html";
 
 const STREAMS = {
@@ -16,8 +25,21 @@ const DEFAULT_STATE = {
   url: STREAMS.high
 };
 
-// ---- State helpers ----
+// ---- Firefox audio host (DOM available in MV3 background scripts) ----
+let ffAudio = null;
+function getFfAudio() {
+  if (!ffAudio) {
+    ffAudio = new Audio();
+    ffAudio.crossOrigin = "anonymous";
+    ffAudio.preload = "none";
+    ffAudio.addEventListener("error", () => {
+      console.warn("[code-radio] audio error:", ffAudio.error);
+    });
+  }
+  return ffAudio;
+}
 
+// ---- State helpers ----
 async function getState() {
   const stored = await chrome.storage.local.get("state");
   return { ...DEFAULT_STATE, ...(stored.state || {}) };
@@ -29,20 +51,20 @@ async function setState(patch) {
   return next;
 }
 
-// ---- Offscreen document lifecycle ----
-
+// ---- Offscreen document lifecycle (Chrome only) ----
 async function hasOffscreen() {
+  if (!OFFSCREEN_SUPPORTED) return false;
   if (chrome.runtime.getContexts) {
     const contexts = await chrome.runtime.getContexts({
       contextTypes: ["OFFSCREEN_DOCUMENT"]
     });
     return contexts.length > 0;
   }
-  // Fallback for older Chrome versions.
   return await chrome.offscreen.hasDocument?.();
 }
 
 async function ensureOffscreen() {
+  if (!OFFSCREEN_SUPPORTED) return;
   if (await hasOffscreen()) return;
   await chrome.offscreen.createDocument({
     url: OFFSCREEN_URL,
@@ -52,12 +74,52 @@ async function ensureOffscreen() {
 }
 
 async function closeOffscreen() {
+  if (!OFFSCREEN_SUPPORTED) return;
   if (!(await hasOffscreen())) return;
   await chrome.offscreen.closeDocument();
 }
 
-// ---- Messaging ----
+// ---- Audio command routing (works in both browsers) ----
+function audioLoad(url) {
+  if (OFFSCREEN_SUPPORTED) {
+    sendToOffscreen({ type: "load", url });
+    return;
+  }
+  const a = getFfAudio();
+  if (a.src !== url) {
+    a.src = url;
+    a.load();
+  }
+}
 
+function audioPlay() {
+  if (OFFSCREEN_SUPPORTED) {
+    sendToOffscreen({ type: "play" });
+    return;
+  }
+  getFfAudio()
+    .play()
+    .catch((err) => console.warn("[code-radio] play failed:", String(err)));
+}
+
+function audioPause() {
+  if (OFFSCREEN_SUPPORTED) {
+    sendToOffscreen({ type: "pause" });
+    return;
+  }
+  if (ffAudio) ffAudio.pause();
+}
+
+function audioSetVolume(v) {
+  const vol = clamp(Number(v), 0, 1);
+  if (OFFSCREEN_SUPPORTED) {
+    sendToOffscreen({ type: "set-volume", volume: vol });
+    return;
+  }
+  if (ffAudio) ffAudio.volume = vol;
+}
+
+// ---- Messaging ----
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Only handle messages addressed to the background (or unaddressed ones
   // from the popup). Forwarded messages addressed to "offscreen" are ignored.
@@ -76,25 +138,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function handle(msg) {
   switch (msg?.type) {
     case "error":
-      // Informational error forwarded from the offscreen document.
+      // Informational error forwarded from the offscreen document (Chrome only).
       console.warn("[code-radio] offscreen error:", msg.error);
       return { ack: true };
+
     case "get-state":
       return await getState();
 
     case "play": {
       const state = await setState({ playing: true });
-      await ensureOffscreen();
-      sendToOffscreen({ type: "load", url: state.url });
-      sendToOffscreen({ type: "set-volume", volume: state.volume });
-      sendToOffscreen({ type: "play" });
+      if (OFFSCREEN_SUPPORTED) await ensureOffscreen();
+      audioLoad(state.url);
+      audioSetVolume(state.volume);
+      audioPlay();
       return state;
     }
 
     case "pause": {
       const state = await setState({ playing: false });
-      sendToOffscreen({ type: "pause" });
-      await closeOffscreen();
+      audioPause();
+      if (OFFSCREEN_SUPPORTED) await closeOffscreen();
       return state;
     }
 
@@ -109,10 +172,10 @@ async function handle(msg) {
       const url = STREAMS[bitrate];
       const state = await setState({ bitrate, url });
       if (state.playing) {
-        await ensureOffscreen();
-        sendToOffscreen({ type: "load", url });
-        sendToOffscreen({ type: "set-volume", volume: state.volume });
-        sendToOffscreen({ type: "play" });
+        if (OFFSCREEN_SUPPORTED) await ensureOffscreen();
+        audioLoad(url);
+        audioSetVolume(state.volume);
+        audioPlay();
       }
       return state;
     }
@@ -120,17 +183,26 @@ async function handle(msg) {
     case "set-volume": {
       const volume = clamp(Number(msg.volume) || 0, 0, 1);
       const state = await setState({ volume });
-      sendToOffscreen({ type: "set-volume", volume });
+      audioSetVolume(volume);
       return state;
     }
 
     case "stream-status":
-      // Forward query to offscreen (if alive) — used by popup on open.
-      try {
-        return await chrome.runtime.sendMessage({ type: "offscreen-status", _to: "offscreen" });
-      } catch {
-        return { paused: true };
+      if (OFFSCREEN_SUPPORTED) {
+        try {
+          return await chrome.runtime.sendMessage({
+            type: "offscreen-status",
+            _to: "offscreen"
+          });
+        } catch {
+          return { paused: true };
+        }
       }
+      return {
+        paused: !ffAudio || ffAudio.paused,
+        src: ffAudio ? ffAudio.src : "",
+        volume: ffAudio ? ffAudio.volume : 0
+      };
 
     default:
       throw new Error(`Unknown message type: ${msg?.type}`);
@@ -144,5 +216,6 @@ function sendToOffscreen(msg) {
 }
 
 function clamp(v, lo, hi) {
+  v = Number.isFinite(v) ? v : lo;
   return Math.max(lo, Math.min(hi, v));
 }
