@@ -51,37 +51,6 @@ async function setState(patch) {
   return next;
 }
 
-// ---- Startup reconciliation ----
-// The `playing` flag in storage is "intent" and survives a browser restart.
-// But after a restart the audio element no longer exists, so nothing is
-// actually playing. Reconcile the stored flag with the real playback state so
-// the popup shows the correct button. On Chrome the offscreen document is also
-// torn down on restart (querying it reports paused); on Firefox the background
-// audio host is recreated fresh. This also keeps `playing: true` correct in the
-// MV3 case where the service worker sleeps but the offscreen document keeps
-// playing music.
-async function reconcileState() {
-  const state = await getState();
-  let actuallyPlaying;
-  if (OFFSCREEN_SUPPORTED) {
-    try {
-      const status = await chrome.runtime.sendMessage({
-        type: "offscreen-status",
-        _to: "offscreen"
-      });
-      actuallyPlaying = !(status && status.paused);
-    } catch {
-      // Offscreen document isn't alive (e.g. after a restart) -> not playing.
-      actuallyPlaying = false;
-    }
-  } else {
-    actuallyPlaying = ffAudio ? !ffAudio.paused : false;
-  }
-  if (state.playing !== actuallyPlaying) {
-    await setState({ playing: actuallyPlaying });
-  }
-}
-
 // ---- Offscreen document lifecycle (Chrome only) ----
 async function hasOffscreen() {
   if (!OFFSCREEN_SUPPORTED) return false;
@@ -250,8 +219,3 @@ function clamp(v, lo, hi) {
   v = Number.isFinite(v) ? v : lo;
   return Math.max(lo, Math.min(hi, v));
 }
-
-// Reconcile stale persisted state with actual playback after a (re)start.
-reconcileState().catch((err) =>
-  console.warn("[code-radio] reconcile failed:", String(err))
-);
