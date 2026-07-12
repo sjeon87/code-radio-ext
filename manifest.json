@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Code Radio Player",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Play freeCodeCamp Code Radio in your browser with volume control, bitrate selection, and background playback.",
   "permissions": ["offscreen", "storage"],
   "background": {
