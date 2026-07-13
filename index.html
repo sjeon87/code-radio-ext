@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Code Radio Player — freeCodeCamp Code Radio in your browser</title>
+  <meta name="description" content="A Manifest V3 browser extension that plays freeCodeCamp's Code Radio with bitrate selection, volume control, and background playback." />
+  <style>
+    :root {
+      --bg: #0f1720;
+      --bg-2: #0b1118;
+      --panel: #16212c;
+      --accent: #009991;
+      --accent-hover: #00b3a9;
+      --text: #e6edf3;
+      --muted: #8b98a5;
+      --border: #233140;
+      --radius: 14px;
+      --maxw: 980px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(1200px 600px at 50% -10%, rgba(0,153,145,0.18), transparent 60%),
+        linear-gradient(180deg, var(--bg) 0%, var(--bg-2) 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+
+    /* Nav */
+    nav {
+      position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(15,23,32,0.72);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    .brand small { color: var(--muted); font-weight: 600; }
+    .nav-links { display: flex; gap: 22px; font-size: 14px; }
+    .nav-links a { color: var(--muted); text-decoration: none; transition: color .15s; }
+    .nav-links a:hover { color: var(--text); }
+    @media (max-width: 640px) { .nav-links { display: none; } }
+
+    /* Hero */
+    header.hero { text-align: center; padding: 72px 0 40px; }
+    .hero-icon {
+      width: 92px; height: 92px; border-radius: 22px;
+      box-shadow: 0 10px 40px rgba(0,153,145,0.35);
+      margin-bottom: 22px;
+    }
+    .live-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+      color: var(--accent); background: rgba(0,153,145,0.12);
+      border: 1px solid rgba(0,153,145,0.4);
+      padding: 6px 12px; border-radius: 999px; margin-bottom: 22px;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(0,153,145,0.55); }
+      70%  { box-shadow: 0 0 0 6px rgba(0,153,145,0); }
+      100% { box-shadow: 0 0 0 0 rgba(0,153,145,0); }
+    }
+    h1.title {
+      font-size: clamp(34px, 6vw, 56px); line-height: 1.05; margin: 0 0 14px;
+      letter-spacing: -0.5px;
+    }
+    h1.title .accent { color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: clamp(16px, 2.4vw, 19px); max-width: 620px; margin: 0 auto 32px; }
+    .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 13px 22px; border-radius: 12px; font-weight: 700; font-size: 15px;
+      text-decoration: none; transition: transform .12s ease, filter .15s ease, background .15s;
+      cursor: pointer; border: 1px solid transparent;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-ghost { background: var(--panel); color: var(--text); border-color: var(--border); }
+    .btn-ghost:hover { border-color: var(--accent); }
+    .btn svg { width: 18px; height: 18px; }
+
+    /* Sections */
+    section { padding: 56px 0; }
+    .section-head { text-align: center; margin-bottom: 38px; }
+    .section-head h2 { font-size: clamp(24px, 4vw, 34px); margin: 0 0 8px; letter-spacing: -0.3px; }
+    .section-head p { color: var(--muted); margin: 0; }
+
+    /* Features */
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    @media (max-width: 760px) { .features { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 26px; transition: border-color .2s, transform .2s;
+    }
+    .card:hover { border-color: var(--accent); transform: translateY(-3px); }
+    .card .ico {
+      width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center;
+      background: rgba(0,153,145,0.14); color: var(--accent); margin-bottom: 16px; font-size: 22px;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+    /* Install */
+    .install {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 36px; text-align: center;
+    }
+    .install h2 { margin: 0 0 8px; font-size: 26px; }
+    .install p { color: var(--muted); margin: 0 0 26px; }
+    .stores { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border); padding: 36px 0; color: var(--muted); font-size: 13.5px;
+    }
+    footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+    .bmc {
+      display: inline-flex; align-items: center; gap: 7px; font-weight: 700; color: #000 !important;
+      background: #ffdd00; padding: 8px 14px; border-radius: 8px; text-decoration: none;
+    }
+    .bmc:hover { filter: brightness(1.05); }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <div class="brand">
+        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAACLklEQVR42u3dQVLDMBBEUd9/x5LTimLBJkUBSRxsz39dpRP0nx5blsbbRkRERDRZ72/3L4oYDYyRhq8XLECc2PR1wALDgaavEy4wvNj4daEFhOHVLhVUvERgPBAYD4TnzV/hFYSgW/XSgPHlNGB+FAKRH24JzA9DwPhwS2B+GALmhyFgfhgC5ochYH4cAgCEAWB+GALmhyFgfhwC5p8HAtUvBZgPAtGvFah+KaD6pYDqlwLMBwEAAFDr/Z8CwN7PAheq/i8BYM8UuFD030oKxHr/d5ICoff+nyQF4gBEQWi9+v1V2sDQbd97JQXiAEQg6Oz8PSNtIA7AYBAeBmAVARgLAQDSIDS+/L1CvTYAgIkg3A3AAsA4EAAQhwAAcRAAEIdg/tm/IzXjQRAAk0EAQBwCAMRBAEAcAgDEQQBAHAQASAAAeAYAgLcAANgHAICdQAD4FuBroK+BAHAeAABOBAHAmUCngp0KBoB7AW4GuRkEAHcD3Q52O9h8gPyYGBNCjIgxIwgApoSlh0WaE2hQpEmhADArODsr2LTwcPX7X4Dq98eQevX7Z5DqBwAAQJA3359Do71fCqh+KaD6pYDqBwHztYJ49EsB1Q8C5oOA+SBgPgAAAALmg4D5IGA+CJgPAub/BgEQHjH+0uaDgPlaQi3yQcB8LUHkSwNVLw1UPRAYDwTGPwvBNsZ45qcSgenBVFDtB8GwncJwpp8Ghu3fDGf6ZYDYb1EEDCIiorn6AEmx0H64XjfLAAAAAElFTkSuQmCC" alt="Code Radio Player icon" />
+        <span>Code Radio Player <small>· v1.0.1</small></span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#install">Get it</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="live-pill"><span class="live-dot"></span> Now streaming focus music</div>
+      <img class="hero-icon" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAACLklEQVR42u3dQVLDMBBEUd9/x5LTimLBJkUBSRxsz39dpRP0nx5blsbbRkRERDRZ72/3L4oYDYyRhq8XLECc2PR1wALDgaavEy4wvNj4daEFhOHVLhVUvERgPBAYD4TnzV/hFYSgW/XSgPHlNGB+FAKRH24JzA9DwPhwS2B+GALmhyFgfhgC5ochYH4cAgCEAWB+GALmhyFgfhwC5p8HAtUvBZgPAtGvFah+KaD6pYDqlwLMBwEAAFDr/Z8CwN7PAheq/i8BYM8UuFD030oKxHr/d5ICoff+nyQF4gBEQWi9+v1V2sDQbd97JQXiAEQg6Oz8PSNtIA7AYBAeBmAVARgLAQDSIDS+/L1CvTYAgIkg3A3AAsA4EAAQhwAAcRAAEIdg/tm/IzXjQRAAk0EAQBwCAMRBAEAcAgDEQQBAHAQASAAAeAYAgLcAANgHAICdQAD4FuBroK+BAHAeAABOBAHAmUCngp0KBoB7AW4GuRkEAHcD3Q52O9h8gPyYGBNCjIgxIwgApoSlh0WaE2hQpEmhADArODsr2LTwcPX7X4Dq98eQevX7Z5DqBwAAQJA3359Do71fCqh+KaD6pYDqBwHztYJ49EsB1Q8C5oOA+SBgPgAAAALmg4D5IGA+CJgPAub/BgEQHjH+0uaDgPlaQi3yQcB8LUHkSwNVLw1UPRAYDwTGPwvBNsZ45qcSgenBVFDtB8GwncJwpp8Ghu3fDGf6ZYDYb1EEDCIiorn6AEmx0H64XjfLAAAAAElFTkSuQmCC" alt="Code Radio Player" />
+      <h1 class="title">Focus beats, <span class="accent">one click</span> away.</h1>
+      <p class="subtitle">
+        A tiny browser extension that plays <strong>freeCodeCamp's Code Radio</strong> — lo-fi and
+        focus music for coding — with bitrate selection, volume control, and true background playback.
+      </p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://chromewebstore.google.com/detail/code-radio-player/dmpebfmcjfeaooneleccgfhigfoekkio" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 11.8v7.6l6.4-3.5L12 11.8zM12 2 4.2 6.4 12 10.8l5.6-3.1L12 2zM4.2 17.6V6.4L12 2v7.8l-7.8 7.8zM21.8 6.4v11.2L12 21.4V10.8l9.8-4.4z"/></svg>
+          Add to Chrome
+        </a>
+        <a class="btn btn-ghost" href="https://addons.mozilla.org/en-US/firefox/addon/code-radio-player/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-9.9 8.6c.2 1.3.7 2.4 1.5 3.3.4.4.9.7 1.4.9-.2-.8-.1-1.6.4-2.3.3-.5.8-.9 1.4-1.1 1.1-.4 2.3 0 3.1.8.9.9 1.3 2.2 1 3.4-.2.8-.7 1.5-1.4 1.9.8.2 1.6.2 2.4 0 1.3-.4 2.4-1.3 3.1-2.5.3-.5.5-1 .6-1.6.1-.6.1-1.2-.1-1.8-.3-1-.9-1.9-1.8-2.5 1.1 0 2.1.4 2.9 1.1.6.5 1.1 1.2 1.4 2 .3.6.5 1.3.5 2 .1 1.6-.4 3.1-1.4 4.3A9.96 9.96 0 0 1 12 22c-5.5 0-10-4.5-10-10S6.5 2 12 2z"/></svg>
+          Add to Firefox
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Built for distraction-free coding</h2>
+        <p>Everything you need to keep the music going — nothing you don't.</p>
+      </div>
+      <div class="features">
+        <div class="card">
+          <div class="ico">🎚️</div>
+          <h3>Bitrate selector</h3>
+          <p>Switch between a crisp <strong>128 kbps</strong> stream or a light <strong>64 kbps</strong> one for slow connections. Your choice is remembered.</p>
+        </div>
+        <div class="card">
+          <div class="ico">🔊</div>
+          <h3>Volume control</h3>
+          <p>A simple slider sets the perfect level — from a whisper to full blast — without leaving your tab.</p>
+        </div>
+        <div class="card">
+          <div class="ico">🎧</div>
+          <h3>Background play</h3>
+          <p>Uses a Manifest V3 offscreen document, so the stream keeps playing even after you close the popup.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <div class="install">
+        <h2>Get Code Radio Player</h2>
+        <p>Free, open, and respectful of your privacy. Install it in seconds.</p>
+        <div class="stores">
+          <a class="btn btn-primary" href="https://chromewebstore.google.com/detail/code-radio-player/dmpebfmcjfeaooneleccgfhigfoekkio" target="_blank" rel="noopener">Add to Chrome / Edge</a>
+          <a class="btn btn-ghost" href="https://addons.mozilla.org/en-US/firefox/addon/code-radio-player/" target="_blank" rel="noopener">Add to Firefox</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <div>Code Radio Player · Manifest V3 extension</div>
+        <div>Stream courtesy of <a href="https://coderadio.freecodecamp.org" target="_blank" rel="noopener">freeCodeCamp Code Radio</a></div>
+      </div>
+      <a class="bmc" href="https://www.buymeacoffee.com/lungo" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+    </div>
+  </footer>
+</body>
+</html>
