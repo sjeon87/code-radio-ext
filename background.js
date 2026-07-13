@@ -215,6 +215,28 @@ function sendToOffscreen(msg) {
   });
 }
 
+// ---- Startup: reset transient playing flag ----
+// State is persisted in chrome.storage.local, which outlives the audio backend
+// (the offscreen document on Chrome, the <audio> element on Firefox). If the
+// user was playing when the browser closed, `playing` would still be true on the
+// next start even though no audio plays anymore — the popup would falsely show
+// "Streaming". Reset the flag on startup so the UI reflects reality.
+// onStartup fires once per browser session (not when the service worker respawns
+// from idle, which must NOT reset an actively-playing Chrome offscreen doc).
+async function resetPlayingOnStartup() {
+  const state = await getState();
+  if (state.playing) {
+    await setState({ playing: false });
+  }
+}
+
+if (chrome.runtime.onStartup) {
+  chrome.runtime.onStartup.addListener(resetPlayingOnStartup);
+}
+if (chrome.runtime.onInstalled) {
+  chrome.runtime.onInstalled.addListener(resetPlayingOnStartup);
+}
+
 function clamp(v, lo, hi) {
   v = Number.isFinite(v) ? v : lo;
   return Math.max(lo, Math.min(hi, v));
