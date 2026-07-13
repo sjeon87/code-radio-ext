@@ -1,0 +1,5 @@
+# Deploy only index.html — ignore all other project files
+*
+
+# Keep the landing page
+!index.html
